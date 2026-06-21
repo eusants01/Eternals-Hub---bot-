@@ -15,6 +15,8 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CANAL_ANIVERSARIOS_ID = int(os.getenv("CANAL_ANIVERSARIOS_ID", 0))
+
+BANNER_PAINEL_ANIVERSARIO_URL = os.getenv("BANNER_PAINEL_ANIVERSARIO_URL")
 BANNER_ANIVERSARIO_URL = os.getenv("BANNER_ANIVERSARIO_URL")
 
 BRASILIA = ZoneInfo("America/Sao_Paulo")
@@ -54,25 +56,39 @@ class ModalAniversario(discord.ui.Modal, title="🎂 Registro de Aniversário"):
             )
             return
 
-        async with self.cog.pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO aniversarios (
-                    user_id, nome, dia, mes, criado_em
+        try:
+            async with self.cog.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO aniversarios (
+                        user_id,
+                        nome,
+                        dia,
+                        mes,
+                        criado_em
+                    )
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET
+                        nome = EXCLUDED.nome,
+                        dia = EXCLUDED.dia,
+                        mes = EXCLUDED.mes
+                    """,
+                    interaction.user.id,
+                    self.nome.value,
+                    dia,
+                    mes,
+                    datetime.now(BRASILIA).replace(tzinfo=None)
                 )
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (user_id)
-                DO UPDATE SET
-                    nome = EXCLUDED.nome,
-                    dia = EXCLUDED.dia,
-                    mes = EXCLUDED.mes
-                """,
-                interaction.user.id,
-                self.nome.value,
-                dia,
-                mes,
-                datetime.now(BRASILIA)
+
+        except Exception as e:
+            print(f"❌ Erro ao salvar aniversário: {e}")
+
+            await interaction.response.send_message(
+                "❌ Não consegui salvar seu aniversário agora. Tente novamente em alguns instantes.",
+                ephemeral=True
             )
+            return
 
         embed = discord.Embed(
             title="🎉 Sua data foi registrada!",
@@ -139,7 +155,7 @@ class PainelAniversarioView(discord.ui.View):
 
         if not dados:
             await interaction.response.send_message(
-                "❌ Você ainda não registrou seu aniversário. Clique em **Participar da celebração** para cadastrar.",
+                "❌ Você ainda não registrou seu aniversário.",
                 ephemeral=True
             )
             return
@@ -248,7 +264,7 @@ class Aniversarios(commands.Cog):
         proximo = await self.proximo_aniversariante_texto()
 
         embed = discord.Embed(
-            title="🎂 • **Celebre seu grande dia!!**",
+            title="🎂 • Celebre seu grande dia!",
             description=(
                 "Todos nós temos uma data especial, e ela merece ser lembrada. ✨\n\n"
                 "Ao registrar seu aniversário, o **Eternals Hub** irá preparar "
@@ -269,7 +285,14 @@ class Aniversarios(commands.Cog):
         )
 
         if interaction.guild and interaction.guild.icon:
-            embed.set_thumbnail(url=interaction.guild.icon.url)
+            embed.set_thumbnail(
+                url=interaction.guild.icon.url
+            )
+
+        if BANNER_PAINEL_ANIVERSARIO_URL:
+            embed.set_image(
+                url=BANNER_PAINEL_ANIVERSARIO_URL
+            )
 
         embed.set_footer(
             text="Eternals Hub • Criando memórias desde o primeiro dia"
@@ -363,7 +386,9 @@ class Aniversarios(commands.Cog):
                 if pessoa["ultimo_anuncio"] == ano_atual:
                     continue
 
-                membro = canal.guild.get_member(pessoa["user_id"])
+                membro = canal.guild.get_member(
+                    pessoa["user_id"]
+                )
 
                 mencao = membro.mention if membro else f"<@{pessoa['user_id']}>"
 
@@ -380,7 +405,9 @@ class Aniversarios(commands.Cog):
                 )
 
                 if BANNER_ANIVERSARIO_URL:
-                    embed.set_image(url=BANNER_ANIVERSARIO_URL)
+                    embed.set_image(
+                        url=BANNER_ANIVERSARIO_URL
+                    )
 
                 embed.set_footer(
                     text="Eternals Hub • Memórias que ficam"
