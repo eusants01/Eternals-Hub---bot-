@@ -15,11 +15,16 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents
+)
 
 
 async def carregar_cogs():
-    extensoes = ["cogs.aniversarios"]
+    extensoes = [
+        "cogs.aniversarios"
+    ]
 
     for extensao in extensoes:
         try:
@@ -30,20 +35,12 @@ async def carregar_cogs():
 
 
 @bot.event
-async def on_ready():
-    print(f"🌙 {bot.user} conectado.")
-
-
-async def main():
-    async with bot:
-        await carregar_cogs()
-
-        await bot.start(TOKEN)
-
-
-@bot.event
 async def setup_hook():
+    await carregar_cogs()
+
     guild = discord.Object(id=GUILD_ID)
+
+    bot.tree.copy_global_to(guild=guild)
 
     synced = await bot.tree.sync(guild=guild)
 
@@ -51,6 +48,16 @@ async def setup_hook():
 
     for cmd in synced:
         print(f"➡️ /{cmd.name}")
+
+
+@bot.event
+async def on_ready():
+    print(f"🌙 {bot.user} conectado.")
+
+
+async def main():
+    async with bot:
+        await bot.start(TOKEN)
 
 
 asyncio.run(main())
