@@ -24,9 +24,6 @@ BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 COR_PADRAO = 0x8B5CF6
 
-
-# ───────────────────────────── Helpers ─────────────────────────────
-
 def calcular_proxima_data(dia: int, mes: int, hoje: date) -> date:
     """Retorna a próxima ocorrência de uma data de aniversário a partir de hoje.
 
@@ -48,8 +45,6 @@ def timestamp_unix(data: date) -> int:
     dt = datetime.combine(data, time(0, 0), tzinfo=BRASILIA)
     return int(dt.timestamp())
 
-
-# ───────────────────────────── Modal de registro ─────────────────────────────
 
 class ModalAniversario(discord.ui.Modal, title="🎂 Registro de Aniversário"):
 
@@ -138,15 +133,12 @@ class ModalAniversario(discord.ui.Modal, title="🎂 Registro de Aniversário"):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        # Atualiza o painel automaticamente, sem precisar reenviar manualmente.
         if interaction.guild_id:
             try:
                 await self.cog.atualizar_painel(interaction.guild_id)
             except Exception as e:
                 print(f"⚠️ Não consegui atualizar o painel automaticamente: {e}")
 
-
-# ───────────────────────────── Confirmação de remoção ─────────────────────────────
 
 class ConfirmarRemocaoView(discord.ui.View):
 
@@ -194,8 +186,6 @@ class ConfirmarRemocaoView(discord.ui.View):
             view=None
         )
 
-
-# ───────────────────────────── Lista paginada ─────────────────────────────
 
 class ListaAniversariantesView(discord.ui.View):
 
@@ -265,8 +255,6 @@ class ListaAniversariantesView(discord.ui.View):
         self._atualizar_botoes()
         await interaction.response.edit_message(embed=self.montar_embed(), view=self)
 
-
-# ───────────────────────────── Painel principal ─────────────────────────────
 
 class PainelAniversarioView(discord.ui.View):
 
@@ -360,8 +348,6 @@ class PainelAniversarioView(discord.ui.View):
         )
 
 
-# ───────────────────────────── Cog ─────────────────────────────
-
 class Aniversarios(commands.Cog):
 
     def __init__(self, bot):
@@ -404,8 +390,6 @@ class Aniversarios(commands.Cog):
                 )
                 """
             )
-
-    # ─────────────── Consultas auxiliares ───────────────
 
     async def buscar_aniversarios_ordenados(self) -> list:
         hoje = datetime.now(BRASILIA).date()
@@ -455,13 +439,13 @@ class Aniversarios(commands.Cog):
         bloco = await self.montar_bloco_proximos(limite=3)
 
         embed = discord.Embed(
-            title="🎂 Aniversários do Eternals Hub",
+            title="<a:8418_Birthday_Cake:1518392200747286711> Seu dia especial merece ser lembrado.",
             description=(
-                "Todo mundo merece ser lembrado no seu dia. 🌙✨\n\n"
-                "Clique em **Registrar** e deixe sua data guardada aqui — quando ela chegar, "
-                "o servidor inteiro vai saber que hoje é o seu dia.\n\n"
-                "**🔜 Próximos a comemorar**\n"
-                f"{bloco}"
+                "Toda amizade cria memórias, e algumas datas merecem ser celebradas.\n\n"
+                "<:880140birthdaycake:1518392281902616696> | Anúncio especial no servidor.\n"
+                "<:679587birthdaycupcake:1518392302089932991> | Homenagem personalizada no dia do aniversário.\n"
+                "📅 | Lista atualizada dos próximos aniversariantes.\n"
+                "💜 | Mensagem exclusiva."
             ),
             color=COR_PADRAO
         )
@@ -472,7 +456,7 @@ class Aniversarios(commands.Cog):
         if BANNER_PAINEL_ANIVERSARIO_URL:
             embed.set_image(url=BANNER_PAINEL_ANIVERSARIO_URL)
 
-        embed.set_footer(text="Eternals Hub • Criando memórias desde o primeiro dia")
+        embed.set_footer(text="Bruna 💖")
         return embed
 
     async def atualizar_painel(self, guild_id: int):
@@ -501,8 +485,6 @@ class Aniversarios(commands.Cog):
             await mensagem.edit(embed=embed)
         except discord.HTTPException:
             pass
-
-    # ─────────────── Comandos ───────────────
 
     @app_commands.command(
         name="instalar_aniversarios",
@@ -602,8 +584,6 @@ class Aniversarios(commands.Cog):
             view=ConfirmarRemocaoView(self, interaction.user.id, dados["nome"]),
             ephemeral=True
         )
-
-    # ─────────────── Tarefa diária ───────────────
 
     @tasks.loop(time=time(hour=0, minute=1, tzinfo=BRASILIA))
     async def verificar_aniversarios(self):
