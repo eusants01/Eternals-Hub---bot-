@@ -20,16 +20,16 @@ BANNER_ANIVERSARIO_URL = os.getenv("BANNER_ANIVERSARIO_URL")
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 
-class ModalAniversario(discord.ui.Modal, title="🎂 Registrar Aniversário"):
+class ModalAniversario(discord.ui.Modal, title="🎂 Registro de Aniversário"):
 
     nome = discord.ui.TextInput(
         label="Como devemos te chamar?",
-        placeholder="Ex: Daniel, Sant's, Dani...",
+        placeholder="Ex: Sant's, Daniel, Dani...",
         max_length=30
     )
 
     data = discord.ui.TextInput(
-        label="Data do aniversário",
+        label="Sua data de aniversário",
         placeholder="Ex: 21/07",
         max_length=5
     )
@@ -45,11 +45,7 @@ class ModalAniversario(discord.ui.Modal, title="🎂 Registrar Aniversário"):
             dia = int(dia)
             mes = int(mes)
 
-            datetime(
-                year=2000,
-                month=mes,
-                day=dia
-            )
+            datetime(year=2000, month=mes, day=dia)
 
         except Exception:
             await interaction.response.send_message(
@@ -62,11 +58,7 @@ class ModalAniversario(discord.ui.Modal, title="🎂 Registrar Aniversário"):
             await conn.execute(
                 """
                 INSERT INTO aniversarios (
-                    user_id,
-                    nome,
-                    dia,
-                    mes,
-                    criado_em
+                    user_id, nome, dia, mes, criado_em
                 )
                 VALUES ($1, $2, $3, $4, $5)
                 ON CONFLICT (user_id)
@@ -83,14 +75,17 @@ class ModalAniversario(discord.ui.Modal, title="🎂 Registrar Aniversário"):
             )
 
         embed = discord.Embed(
-            title="🎂 Aniversário registrado!",
+            title="🎉 Sua data foi registrada!",
             description=(
-                f"Seu aniversário foi salvo com sucesso.\n\n"
-                f"👤 **Nome:** {self.nome.value}\n"
-                f"📅 **Data:** `{dia:02d}/{mes:02d}`\n\n"
-                f"Quando chegar seu dia, o Eternals Hub vai comemorar com você. ✨"
+                f"Pronto, **{self.nome.value}**! ✨\n\n"
+                f"Seu aniversário ficou salvo como **{dia:02d}/{mes:02d}**.\n"
+                f"Quando esse dia chegar, o **Eternals Hub** vai preparar uma homenagem especial para você."
             ),
-            color=discord.Color.purple()
+            color=0x8B5CF6
+        )
+
+        embed.set_footer(
+            text="Eternals Hub • Seu dia também vira memória"
         )
 
         await interaction.response.send_message(
@@ -106,23 +101,31 @@ class PainelAniversarioView(discord.ui.View):
         self.cog = cog
 
     @discord.ui.button(
-        label="Registrar aniversário",
-        emoji="🎂",
+        label="Participar da celebração",
+        emoji="🎉",
         style=discord.ButtonStyle.primary,
         custom_id="eternals_registrar_aniversario"
     )
-    async def registrar(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def registrar(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
         await interaction.response.send_modal(
             ModalAniversario(self.cog)
         )
 
     @discord.ui.button(
-        label="Ver meu aniversário",
-        emoji="📅",
+        label="Meu registro",
+        emoji="📖",
         style=discord.ButtonStyle.secondary,
         custom_id="eternals_ver_aniversario"
     )
-    async def ver_aniversario(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def ver_aniversario(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
 
         async with self.cog.pool.acquire() as conn:
             dados = await conn.fetchrow(
@@ -136,7 +139,7 @@ class PainelAniversarioView(discord.ui.View):
 
         if not dados:
             await interaction.response.send_message(
-                "❌ Você ainda não registrou seu aniversário.",
+                "❌ Você ainda não registrou seu aniversário. Clique em **Participar da celebração** para cadastrar.",
                 ephemeral=True
             )
             return
@@ -154,9 +157,7 @@ class Aniversarios(commands.Cog):
         self.pool = None
 
     async def cog_load(self):
-        self.pool = await asyncpg.create_pool(
-            DATABASE_URL
-        )
+        self.pool = await asyncpg.create_pool(DATABASE_URL)
 
         await self.criar_tabelas()
 
@@ -183,38 +184,115 @@ class Aniversarios(commands.Cog):
                 """
             )
 
+    async def proximo_aniversariante_texto(self):
+        hoje = datetime.now(BRASILIA).date()
+
+        async with self.pool.acquire() as conn:
+            dados = await conn.fetch(
+                """
+                SELECT nome, dia, mes
+                FROM aniversarios
+                ORDER BY mes, dia
+                """
+            )
+
+        if not dados:
+            return "🌙 Ainda ninguém registrou uma data."
+
+        proximos = []
+
+        for item in dados:
+            data_aniversario = datetime(
+                hoje.year,
+                item["mes"],
+                item["dia"],
+                tzinfo=BRASILIA
+            ).date()
+
+            if data_aniversario < hoje:
+                data_aniversario = datetime(
+                    hoje.year + 1,
+                    item["mes"],
+                    item["dia"],
+                    tzinfo=BRASILIA
+                ).date()
+
+            dias = (data_aniversario - hoje).days
+
+            proximos.append(
+                (dias, item["nome"], item["dia"], item["mes"])
+            )
+
+        proximos.sort(key=lambda x: x[0])
+
+        dias, nome, dia, mes = proximos[0]
+
+        if dias == 0:
+            return f"🎉 **{nome}** faz aniversário hoje!"
+
+        if dias == 1:
+            return f"👤 **{nome}**\n📅 `{dia:02d}/{mes:02d}`\n⏳ Falta **1 dia**."
+
+        return f"👤 **{nome}**\n📅 `{dia:02d}/{mes:02d}`\n⏳ Faltam **{dias} dias**."
+
     @app_commands.command(
-        name="painel_aniversarios",
-        description="Cria o painel de aniversários do servidor."
+        name="instalar_aniversarios",
+        description="Instala o painel de aniversários no canal atual."
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def painel_aniversarios(self, interaction: discord.Interaction):
+    async def instalar_aniversarios(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        proximo = await self.proximo_aniversariante_texto()
 
         embed = discord.Embed(
-            title="🎂 Painel de Aniversários",
+            title="🎂 • **Celebre seu grande dia!!**",
             description=(
-                "Registre seu aniversário para o Eternals Hub comemorar com você.\n\n"
-                "Clique no botão abaixo, coloque seu nome e sua data.\n\n"
-                "No dia do seu aniversário, o bot enviará uma mensagem especial "
-                "com marcação, homenagem e banner no canal de aniversários."
+                "Todos nós temos uma data especial, e ela merece ser lembrada. ✨\n\n"
+                "Ao registrar seu aniversário, o **Eternals Hub** irá preparar "
+                "uma homenagem exclusiva para você.\n\n"
+                "🎈 **O que acontece no seu aniversário?**\n\n"
+                "・📢 Anúncio especial no servidor.\n"
+                "・🎉 Marcação personalizada.\n"
+                "・🖼️ Banner comemorativo.\n"
+                "・💜 Mensagem exclusiva.\n"
+                "・⏰ Destaque disponível até às **23:59 (BRT)**.\n\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "🎂 **Próximo aniversariante**\n\n"
+                f"{proximo}\n\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "Clique em um dos botões abaixo para começar. 🌙"
             ),
-            color=discord.Color.purple()
+            color=0x8B5CF6
         )
 
+        if interaction.guild and interaction.guild.icon:
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+
         embed.set_footer(
-            text="Eternals Hub • Seu dia também vira memória"
+            text="Eternals Hub • Criando memórias desde o primeiro dia"
+        )
+
+        await interaction.channel.send(
+            embed=embed,
+            view=PainelAniversarioView(self)
         )
 
         await interaction.response.send_message(
-            embed=embed,
-            view=PainelAniversarioView(self)
+            "✅ Painel de aniversários instalado com sucesso.",
+            ephemeral=True
         )
 
     @app_commands.command(
         name="aniversariantes",
         description="Mostra os aniversários registrados."
     )
-    async def aniversariantes(self, interaction: discord.Interaction):
+    async def aniversariantes(
+        self,
+        interaction: discord.Interaction
+    ):
 
         async with self.pool.acquire() as conn:
             dados = await conn.fetch(
@@ -240,11 +318,16 @@ class Aniversarios(commands.Cog):
         embed = discord.Embed(
             title="📅 Aniversários Registrados",
             description=texto,
-            color=discord.Color.purple()
+            color=0x8B5CF6
+        )
+
+        embed.set_footer(
+            text="Eternals Hub • Lista de celebrações"
         )
 
         await interaction.response.send_message(
-            embed=embed
+            embed=embed,
+            ephemeral=True
         )
 
     @tasks.loop(minutes=1)
@@ -259,9 +342,7 @@ class Aniversarios(commands.Cog):
         mes_atual = agora.month
         ano_atual = agora.year
 
-        canal = self.bot.get_channel(
-            CANAL_ANIVERSARIOS_ID
-        )
+        canal = self.bot.get_channel(CANAL_ANIVERSARIOS_ID)
 
         if not canal:
             return
@@ -282,30 +363,27 @@ class Aniversarios(commands.Cog):
                 if pessoa["ultimo_anuncio"] == ano_atual:
                     continue
 
-                membro = canal.guild.get_member(
-                    pessoa["user_id"]
-                )
+                membro = canal.guild.get_member(pessoa["user_id"])
 
                 mencao = membro.mention if membro else f"<@{pessoa['user_id']}>"
 
                 embed = discord.Embed(
-                    title="🎉 Hoje é dia de comemorar!",
+                    title="🎉 Hoje o Eternals Hub está em festa!",
                     description=(
                         f"Hoje é aniversário de {mencao}! 🎂\n\n"
-                        f"Que seu dia seja cheio de risadas, amizade, "
-                        f"momentos bons e memórias eternas.\n\n"
-                        f"✨ **Feliz aniversário, {pessoa['nome']}!**"
+                        f"Que seu dia seja leve, divertido e cheio de momentos bons.\n"
+                        f"Que nunca faltem risadas, amizade verdadeira e histórias para lembrar.\n\n"
+                        f"✨ **Feliz aniversário, {pessoa['nome']}!**\n\n"
+                        f"Essa homenagem ficará aqui até às **23:59 (BRT)**."
                     ),
-                    color=discord.Color.purple()
+                    color=0x8B5CF6
                 )
 
                 if BANNER_ANIVERSARIO_URL:
-                    embed.set_image(
-                        url=BANNER_ANIVERSARIO_URL
-                    )
+                    embed.set_image(url=BANNER_ANIVERSARIO_URL)
 
                 embed.set_footer(
-                    text="Eternals Hub • Esta mensagem ficará até 23:59"
+                    text="Eternals Hub • Memórias que ficam"
                 )
 
                 mensagem = await canal.send(
