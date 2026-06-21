@@ -53,14 +53,8 @@ async def on_ready():
 async def load_extensions():
 
     extensoes = [
-
-        "cogs.painel",
-        "cogs.zoeira",
-        "cogs.sorte",
-        "cogs.livro",
-        "cogs.aniversarios"
-
-    ]
+    "cogs.aniversarios"
+                ]
 
     for extensao in extensoes:
 
