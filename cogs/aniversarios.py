@@ -442,16 +442,13 @@ class Aniversarios(commands.Cog):
             title="<a:8418_Birthday_Cake:1518392200747286711> Seu dia especial merece ser lembrado.",
             description=(
                 "Toda amizade cria memórias, e algumas datas merecem ser celebradas.\n\n"
-                "<:880140birthdaycake:1518392281902616696> | Anúncio especial no servidor.\n"
-                "<:679587birthdaycupcake:1518392302089932991> | Homenagem personalizada no dia do aniversário.\n"
-                "📅 | Lista atualizada dos próximos aniversariantes.\n"
-                "💜 | Mensagem exclusiva."
+                "> <:880140birthdaycake:1518392281902616696> | *Anúncio especial no servidor.*\n"
+                "> <:679587birthdaycupcake:1518392302089932991> | *Homenagem personalizada.*\n"
+                "> 📅 | *Lista atualizada dos próximos aniversariantes.*\n"
+                "> 💜 | *Mensagem exclusiva.*"
             ),
             color=COR_PADRAO
         )
-
-        if guild and guild.icon:
-            embed.set_thumbnail(url=guild.icon.url)
 
         if BANNER_PAINEL_ANIVERSARIO_URL:
             embed.set_image(url=BANNER_PAINEL_ANIVERSARIO_URL)
