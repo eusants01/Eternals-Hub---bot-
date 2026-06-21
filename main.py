@@ -15,16 +15,11 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(
-    command_prefix="!",
-    intents=intents
-)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 async def carregar_cogs():
-    extensoes = [
-        "cogs.aniversarios"
-    ]
+    extensoes = ["cogs.aniversarios"]
 
     for extensao in extensoes:
         try:
@@ -38,19 +33,24 @@ async def carregar_cogs():
 async def on_ready():
     print(f"🌙 {bot.user} conectado.")
 
-    try:
-        guild = discord.Object(id=GUILD_ID)
-        synced = await bot.tree.sync(guild=guild)
-
-        print(f"✅ {len(synced)} comandos sincronizados.")
-    except Exception as e:
-        print(f"❌ Erro ao sincronizar comandos: {e}")
-
 
 async def main():
     async with bot:
         await carregar_cogs()
+
         await bot.start(TOKEN)
+
+
+@bot.event
+async def setup_hook():
+    guild = discord.Object(id=GUILD_ID)
+
+    synced = await bot.tree.sync(guild=guild)
+
+    print(f"✅ {len(synced)} comandos sincronizados no servidor {GUILD_ID}.")
+
+    for cmd in synced:
+        print(f"➡️ /{cmd.name}")
 
 
 asyncio.run(main())
